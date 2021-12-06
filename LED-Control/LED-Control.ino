@@ -59,20 +59,14 @@ void num_LEDs(int num) {
   maxLEDs = num;
 }
 
-void brightness(int newbright) {
-  LEDS.setBrightness(newbright);
-  bright = newbright;
-  FastLED.show();
-}
-
 void color(String color) {
   int color1 = color.substring(0,3).toInt();
   int color2 = color.substring(4,7).toInt();
   int color3 = color.substring(8).toInt();
   for (int i = 0; i < maxLEDs; i++) {
     leds[i] = CRGB(color1, color2, color3);
-    FastLED.show();
   }
+  FastLED.show();
 }
 
 void wake(String time) {
@@ -134,10 +128,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         // Do stuff based on the command received from the app
         if (command.startsWith("num")) {
           num_LEDs(command.substring(3).toInt());
-        }
-
-        if (command.startsWith("bright")) {
-          brightness(command.substring(6).toInt());
         }
 
         if (command.equals("on")) {
