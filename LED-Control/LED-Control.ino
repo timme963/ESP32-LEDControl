@@ -38,12 +38,19 @@ float txValue = 0;
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
-#define NUM_LEDS 60
+#define NUM_LEDS 60 //maximal 60 LEDs
 #define DATA_PIN 22
+#define COOLING  55
+#define SPARKING 120
 
 CRGB leds[NUM_LEDS];
 int maxLEDs = 15;
-int bright = 100;
+int color1;
+int color2;
+int color3;
+String effect;
+String effectCommand;
+bool gReverseDirection = false;
 
 void num_LEDs(int num) {
   if (num < maxLEDs) {
@@ -60,9 +67,9 @@ void num_LEDs(int num) {
 }
 
 void color(String color) {
-  int color1 = color.substring(0,3).toInt();
-  int color2 = color.substring(4,7).toInt();
-  int color3 = color.substring(8).toInt();
+  color1 = color.substring(0,3).toInt();
+  color2 = color.substring(4,7).toInt();
+  color3 = color.substring(8).toInt();
   for (int i = 0; i < maxLEDs; i++) {
     leds[i] = CRGB(color1, color2, color3);
   }
@@ -98,6 +105,109 @@ void sleep(String time) {
   }
 }
 
+void blink(String intervall) {
+  for (int i = 0; i < maxLEDs; i++) {
+    leds[i] = CRGB::Black;
+  }
+  FastLED.show();
+  delay(intervall.toInt());
+  for (int i = 0; i < maxLEDs; i++) {
+    leds[i] = CRGB(color1, color2, color3);
+  }
+  FastLED.show();
+  delay(intervall.toInt());
+}
+
+void colorChange(String data) {
+  //String intervall = data.substring();//TODO add color
+  String intervall = data;
+  //TODO colors
+  //TODO fade
+  while (effect == "color") {
+    for (int i = 0; i < maxLEDs; i++) {
+    leds[i] = CRGB::Red;
+    }
+    FastLED.show();
+    delay(intervall.toInt());
+    for (int i = 0; i < maxLEDs; i++) {
+      leds[i] = CRGB::Blue;
+    }
+    FastLED.show();
+    delay(intervall.toInt());
+    for (int i = 0; i < maxLEDs; i++) {
+      leds[i] = CRGB::Green;
+    }
+    FastLED.show();
+    delay(intervall.toInt());
+  }
+}
+
+void fadeall() {
+  for(int i = 0; i < maxLEDs; i++) {
+    leds[i].nscale8(250);
+  }
+}
+
+void cylon() {
+  static uint8_t hue = 0;
+  for (int i = 0; i < maxLEDs; i++) {
+		// Set the i'th led to red
+		leds[i] = CHSV(hue++, 255, 255);
+		// Show the leds
+		FastLED.show();
+		// now that we've shown the leds, reset the i'th led to black
+		leds[i] = CRGB::Black;
+		fadeall();
+		// Wait a little bit before we loop around and do it again
+		delay(10);
+	}
+	// Now go in the other direction.
+	for (int i = (maxLEDs)-1; i >= 0; i--) {
+		// Set the i'th led to red
+		leds[i] = CHSV(hue++, 255, 255);//TODO
+		// Show the leds
+		FastLED.show();
+		// now that we've shown the leds, reset the i'th led to black
+		leds[i] = CRGB::Black;
+		fadeall();
+		// Wait a little bit before we loop around and do it again
+		delay(10);
+	}
+}
+
+void fire() {
+  while (effect == "firee") {
+  static byte heat[NUM_LEDS];
+  // Step 1.  Cool down every cell a little
+  for (int i = 0; i < maxLEDs; i++) {
+    heat[i] = qsub8(heat[i],  random8(0, ((COOLING * 10) / maxLEDs) + 2));
+  }
+  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+  for (int k= maxLEDs - 1; k >= 2; k--) {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
+  }
+  // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
+  if (random8() < SPARKING) {
+    int y = random8(7);
+    heat[y] = qadd8(heat[y], random8(16,160));
+  }
+  // Step 4.  Map from heat cells to LED colors
+  for (int j = 0; j < maxLEDs; j++) {
+    CRGB color = HeatColor(heat[j]);
+    int pixelnumber;
+    if (gReverseDirection) {
+      pixelnumber = (maxLEDs-1) - j;
+    } else {
+      pixelnumber = j;
+    }
+    leds[pixelnumber] = color;
+  }
+  FastLED.show();
+
+  }
+}
+
+
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
@@ -123,15 +233,19 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         
         command.trim();
 
-        Serial.println();
-
         // Do stuff based on the command received from the app
+        if (command.startsWith("e")) {
+          effect = command.substring(1,6);
+        } else {
+          effect = "";
+        }
+
         if (command.startsWith("num")) {
           num_LEDs(command.substring(3).toInt());
         }
 
         if (command.equals("on")) {
-          LEDS.setBrightness(bright);
+          LEDS.setBrightness(255);
           FastLED.show();
         }
 
@@ -151,7 +265,25 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         if (command.startsWith("gosleep")) {
           sleep(command.substring(7));
         }
-          
+
+        if (command.startsWith("eblink")) {
+          blink(command.substring(6));
+          effectCommand = command.substring(6);
+        }
+
+        if (command.startsWith("eColor")) {
+          colorChange(command.substring(6));
+          effectCommand = command.substring(6);
+        }
+
+        if (command.startsWith("ecylon")) {
+          cylon();
+        }
+
+        if (command.startsWith("efiree")) {
+          fire();
+        }
+
         Serial.println();
         Serial.println("*********");
       }
@@ -198,34 +330,6 @@ void setup() {
 
 void loop() {
   if (deviceConnected) {
-    // Fabricate some arbitrary junk for now...
-    //txValue = analogRead(readPin) / 3.456; // This could be an actual sensor reading!
-
-    // Let's convert the value to a char array:
-    //char txString[8]; // make sure this is big enuffz
-    //dtostrf(txValue, 1, 2, txString); // float_val, min_width, digits_after_decimal, char_buffer
-    
-//    pCharacteristic->setValue(&txValue, 1); // To send the integer value
-//    pCharacteristic->setValue("Hello!"); // Sending a test message
-    //pCharacteristic->setValue(txString);
-    
-    //pCharacteristic->notify(); // Send the value to the app!
-    //Serial.print("*** Sent Value: ");
-    //Serial.print(txString);
-    //Serial.println(" ***");
-
-    // You can add the rxValue checks down here instead
-    // if you set "rxValue" as a global var at the top!
-    // Note you will have to delete "std::string" declaration
-    // of "rxValue" in the callback function.
-//    if (rxValue.find("A") != -1) { 
-//      Serial.println("Turning ON!");
-//      digitalWrite(LED, HIGH);
-//    }
-//    else if (rxValue.find("B") != -1) {
-//      Serial.println("Turning OFF!");
-//      digitalWrite(LED, LOW);
-//    }
   }
   delay(1000);
 }
