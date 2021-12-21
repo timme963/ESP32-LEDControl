@@ -118,34 +118,19 @@ void blink(String intervall) {
   delay(intervall.toInt());
 }
 
-void colorChange(String data) {
-  //String intervall = data.substring();//TODO add color
-  String intervall = data;
-  //TODO colors
-  //TODO fade
-  while (effect == "color") {
-    for (int i = 0; i < maxLEDs; i++) {
-    leds[i] = CRGB::Red;
-    }
-    FastLED.show();
-    delay(intervall.toInt());
-    for (int i = 0; i < maxLEDs; i++) {
-      leds[i] = CRGB::Blue;
-    }
-    FastLED.show();
-    delay(intervall.toInt());
-    for (int i = 0; i < maxLEDs; i++) {
-      leds[i] = CRGB::Green;
-    }
-    FastLED.show();
-    delay(intervall.toInt());
-  }
-}
-
 void fadeall() {
   for(int i = 0; i < maxLEDs; i++) {
     leds[i].nscale8(250);
   }
+}
+
+void colorChange() {
+  static uint8_t hue = 0;
+  for (int i = 0; i < maxLEDs; i++) {
+		leds[i] = CHSV(hue++, 255, 255);
+  }
+  delay(50);
+  FastLED.show();
 }
 
 void cylon() {
@@ -164,7 +149,7 @@ void cylon() {
 	// Now go in the other direction.
 	for (int i = (maxLEDs)-1; i >= 0; i--) {
 		// Set the i'th led to red
-		leds[i] = CHSV(hue++, 255, 255);//TODO
+		leds[i] = CHSV(hue++, 255, 255);
 		// Show the leds
 		FastLED.show();
 		// now that we've shown the leds, reset the i'th led to black
@@ -172,11 +157,10 @@ void cylon() {
 		fadeall();
 		// Wait a little bit before we loop around and do it again
 		delay(10);
-	}
+  }
 }
 
 void fire() {
-  while (effect == "firee") {
   static byte heat[NUM_LEDS];
   // Step 1.  Cool down every cell a little
   for (int i = 0; i < maxLEDs; i++) {
@@ -203,8 +187,7 @@ void fire() {
     leds[pixelnumber] = color;
   }
   FastLED.show();
-
-  }
+  delay(16);
 }
 
 
@@ -267,21 +250,20 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
 
         if (command.startsWith("eblink")) {
-          blink(command.substring(6));
+          //blink(command.substring(6));
           effectCommand = command.substring(6);
         }
 
         if (command.startsWith("eColor")) {
-          colorChange(command.substring(6));
-          effectCommand = command.substring(6);
+          //colorChange();
         }
 
         if (command.startsWith("ecylon")) {
-          cylon();
+          //cylon();
         }
 
         if (command.startsWith("efiree")) {
-          fire();
+          //fire();
         }
 
         Serial.println();
@@ -329,7 +311,21 @@ void setup() {
 }
 
 void loop() {
-  if (deviceConnected) {
+  if (effect != "") {
+    if (effect == "blink") {
+      blink(effectCommand);
+    }
+
+    if (effect == "Color") {
+      colorChange();
+    }
+
+    if (effect == "cylon") {
+      cylon();
+    }
+
+    if (effect == "firee") {
+      fire();
+    }
   }
-  delay(1000);
 }
