@@ -51,6 +51,9 @@ int color3;
 String effect;
 String effectCommand;
 bool gReverseDirection = false;
+unsigned long startMillis;
+unsigned long currentMillis;
+const unsigned long period = 20;
 
 void num_LEDs(int num) {
   if (num < maxLEDs) {
@@ -106,16 +109,26 @@ void sleep(String time) {
 }
 
 void blink(String intervall) {
-  for (int i = 0; i < maxLEDs; i++) {
-    leds[i] = CRGB::Black;
+  currentMillis = millis();
+  if (currentMillis - startMillis >= intervall.toInt()) {
+    for (int i = 0; i < maxLEDs; i++) {
+      leds[i] = CRGB::Black;
+    }
+    FastLED.show();
+    delay(100);
   }
-  FastLED.show();
-  delay(intervall.toInt());
-  for (int i = 0; i < maxLEDs; i++) {
-    leds[i] = CRGB(color1, color2, color3);
+  //delay(intervall.toInt());
+  if (currentMillis - startMillis >= (intervall.toInt()*2)) {
+    startMillis = currentMillis;
+    for (int i = 0; i < maxLEDs; i++) {
+      Serial.println(i);
+      leds[i] = CRGB(color1, color2, color3);
+    }
+    FastLED.show();
+    delay(100);
   }
-  FastLED.show();
-  delay(intervall.toInt());
+
+  //delay(intervall.toInt());
 }
 
 void fadeall() {
@@ -128,8 +141,9 @@ void colorChange() {
   static uint8_t hue = 0;
   for (int i = 0; i < maxLEDs; i++) {
 		leds[i] = CHSV(hue++, 255, 255);
+    delay(10);
   }
-  delay(50);
+  
   FastLED.show();
 }
 
@@ -250,20 +264,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
 
         if (command.startsWith("eblink")) {
-          //blink(command.substring(6));
           effectCommand = command.substring(6);
-        }
-
-        if (command.startsWith("eColor")) {
-          //colorChange();
-        }
-
-        if (command.startsWith("ecylon")) {
-          //cylon();
-        }
-
-        if (command.startsWith("efiree")) {
-          //fire();
         }
 
         Serial.println();
