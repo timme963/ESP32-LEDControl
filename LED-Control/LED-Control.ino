@@ -25,6 +25,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <string>
 
 BLECharacteristic *pCharacteristic;
 bool deviceConnected = false;
@@ -45,10 +46,11 @@ float txValue = 0;
 
 CRGB leds[NUM_LEDS];
 int maxLEDs = 15;
-int color1;
-int color2;
-int color3;
-String effect;
+int color1 = 0;
+int color2 = 0;
+int color3 = 0;
+int brightness = 255;
+String effect = "";
 String effectCommand;
 bool gReverseDirection = false;
 unsigned long startMillis;
@@ -121,7 +123,6 @@ void blink(String intervall) {
   if (currentMillis - startMillis >= (intervall.toInt()*2)) {
     startMillis = currentMillis;
     for (int i = 0; i < maxLEDs; i++) {
-      Serial.println(i);
       leds[i] = CRGB(color1, color2, color3);
     }
     FastLED.show();
@@ -204,6 +205,14 @@ void fire() {
   delay(16);
 }
 
+int intColor() {
+  int Red = (color1 << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
+  int Green = (color2 << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff
+  int Blue = color3 & 0x000000FF; //Mask out anything not blue.
+
+  return 0xFF000000 | Red | Green | Blue; //0xFF000000 for 100% Alpha. Bitwise OR everything together.
+}
+
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -218,6 +227,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
       std::string rxValue = pCharacteristic->getValue();
+     
       String command = "";
       if (rxValue.length() > 0) {
         Serial.println("*********");
@@ -237,6 +247,20 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           effect = "";
         }
 
+        if (command.equals("connected")) {
+          //effect = "connect";
+          if (brightness == 255) {
+            pCharacteristic->setValue("b255");
+          } else {
+            pCharacteristic->setValue("b0");
+          }
+          
+          pCharacteristic->notify();
+          //delay(10);
+          //pCharacteristic->setValue("c" + intColor());
+          //pCharacteristic->notify();
+        }
+
         if (command.startsWith("num")) {
           num_LEDs(command.substring(3).toInt());
         }
@@ -244,15 +268,24 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         if (command.equals("on")) {
           LEDS.setBrightness(255);
           FastLED.show();
+          brightness = 255;
+          pCharacteristic->setValue("b255");
+          pCharacteristic->notify();
         }
 
         if (command.equals("off")) {
           LEDS.setBrightness(0);
           FastLED.show();
+          brightness = 0;
+          pCharacteristic->setValue("b0");
+          pCharacteristic->notify();
         }
 
         if (command.startsWith("c")) {
           color(command.substring(1));
+          //effect = "a";
+          //pCharacteristic->setValue("c" + intColor());
+          //pCharacteristic->notify();
         }
 
         if (command.startsWith("wakeup")) {
@@ -312,21 +345,32 @@ void setup() {
 }
 
 void loop() {
-  if (effect != "") {
-    if (effect == "blink") {
-      blink(effectCommand);
-    }
+  /*if (effect == "connect") {
+    pCharacteristic->setValue("b" + brightness);
+    pCharacteristic->notify();
+    delay(10);
+    pCharacteristic->setValue("c" + intColor());
+    pCharacteristic->notify();
+    effect = "";
+  }
+  if (effect == "a") {
+    pCharacteristic->setValue("c" + intColor());
+    pCharacteristic->notify();
+    effect = "";
+  }*/
+  if (effect == "blink") {
+    blink(effectCommand);
+  }
 
-    if (effect == "Color") {
-      colorChange();
-    }
+  if (effect == "Color") {
+    colorChange();
+  }
 
-    if (effect == "cylon") {
-      cylon();
-    }
+  if (effect == "cylon") {
+    cylon();
+  }
 
-    if (effect == "firee") {
-      fire();
-    }
+  if (effect == "firee") {
+    fire();
   }
 }
