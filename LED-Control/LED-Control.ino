@@ -26,6 +26,9 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <string>
+#include <Ticker.h>
+#include <BLEAdvertisedDevice.h>
+#include <BLEAddress.h>
 
 BLECharacteristic *pCharacteristic;
 bool deviceConnected = false;
@@ -39,7 +42,7 @@ float txValue = 0;
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
-#define NUM_LEDS 60 //maximal 60 LEDs
+#define NUM_LEDS 150 //maximal 150 LEDs
 #define DATA_PIN 22
 #define COOLING  55
 #define SPARKING 120
@@ -52,7 +55,13 @@ int color3 = 0;
 int brightness = 255;
 String effect = "";
 String effectCommand;
+std::string mName = "HUAWEI";
+static BLEAddress *pServerAddress;
+BLEScan* pBLEScan ;
+int Verzoegerung = 5;
+int VerzoegerungZaeler = 0;
 bool gReverseDirection = false;
+Ticker Tic;
 unsigned long startMillis;
 unsigned long currentMillis;
 const unsigned long period = 20;
@@ -61,7 +70,7 @@ void num_LEDs(int num) {
   if (num < maxLEDs) {
     for (int i = num; i <= maxLEDs; i++) {
     leds[i] = CRGB::Black;
-  }
+    }
   } else {
     for (int i = (num-1); i >= maxLEDs; i--) {
     leds[i] = CRGB::White;//When add LEDs this extra LEDs are with White color
@@ -205,6 +214,33 @@ void fire() {
   delay(16);
 }
 
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) // passiert wenn BLE Device ( beacon ) gefunden wurde
+    {
+      Serial.println(advertisedDevice.getAddress().toString().c_str()); // ibeacon Adresse anzeigen
+      Serial.println(advertisedDevice.getName().c_str());               // Name anzeigen
+      if (advertisedDevice.getName().c_str() == mName)
+      {
+        Serial.println(" Ueberwachte Adresse");                         // wenn überwache Adresse gefunden wurde
+        LEDS.setBrightness(255);
+        for (int i = 0; i < maxLEDs; i++) {
+          leds[i] = CRGB::White;
+        }
+        FastLED.show();
+        VerzoegerungZaeler = 0;
+        advertisedDevice.getScan()->stop();                           // Scanvorgang beenden
+      }
+    }
+};
+
+void SekundenTic() {
+  VerzoegerungZaeler++;  // Sekundenzähler
+  if (VerzoegerungZaeler >= Verzoegerung) {
+    LEDS.setBrightness(0);
+    FastLED.show();
+  }
+}
+
 int intColor() {
   int Red = (color1 << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
   int Green = (color2 << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff
@@ -216,7 +252,7 @@ int intColor() {
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      deviceConnected = true;
+      deviceConnected = true;     
     };
 
     void onDisconnect(BLEServer* pServer) {
@@ -247,25 +283,11 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           effect = "";
         }
 
-        if (command.equals("connected")) {
-          //effect = "connect";
-          if (brightness == 255) {
-            pCharacteristic->setValue("b255");
-          } else {
-            pCharacteristic->setValue("b0");
-          }
-          
-          pCharacteristic->notify();
-          //delay(10);
-          //pCharacteristic->setValue("c" + intColor());
-          //pCharacteristic->notify();
-        }
-
         if (command.startsWith("num")) {
           num_LEDs(command.substring(3).toInt());
         }
 
-        if (command.equals("on")) {
+        else if (command.equals("on")) {
           LEDS.setBrightness(255);
           FastLED.show();
           brightness = 255;
@@ -273,7 +295,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           pCharacteristic->notify();
         }
 
-        if (command.equals("off")) {
+        else if (command.equals("off")) {
           LEDS.setBrightness(0);
           FastLED.show();
           brightness = 0;
@@ -281,19 +303,46 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           pCharacteristic->notify();
         }
 
-        if (command.startsWith("c")) {
+        else if (command.startsWith("c")) {
           color(command.substring(1));
-          //effect = "a";
-          //pCharacteristic->setValue("c" + intColor());
+          //std::string b = "Hallo" + 255;
+          //pCharacteristic->setValue("");
           //pCharacteristic->notify();
         }
 
-        if (command.startsWith("wakeup")) {
+        else if (command.startsWith("wakeup")) {
           wake(command.substring(6));
         }
 
-        if (command.startsWith("gosleep")) {
+        else if (command.startsWith("gosleep")) {
           sleep(command.substring(7));
+        }
+
+        else if (command.equals("beacon+ein")) {
+          pServerAddress = new BLEAddress(mName.c_str());
+          BLEDevice::init("");
+          pBLEScan = BLEDevice::getScan();
+          pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+          Tic.attach( 1,SekundenTic);
+          effect = "beacon";
+        }
+
+        else if (command.equals("beacon+aus")) {
+          effect = "";
+        }
+
+        if (command.startsWith("m")) {
+          if (brightness == 255) {
+          pCharacteristic->setValue("b255");
+          } else {
+            pCharacteristic->setValue("b0");
+          }
+          pCharacteristic->notify();
+          delay(10);
+          String name = command.substring(1);
+          mName = name.c_str();
+          //pCharacteristic->setValue("c" + intColor());
+          //pCharacteristic->notify(); 
         }
 
         if (command.startsWith("eblink")) {
@@ -315,7 +364,7 @@ void setup() {
   // Create the BLE Server
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
-
+  
   // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
@@ -345,32 +394,26 @@ void setup() {
 }
 
 void loop() {
-  /*if (effect == "connect") {
-    pCharacteristic->setValue("b" + brightness);
-    pCharacteristic->notify();
-    delay(10);
-    pCharacteristic->setValue("c" + intColor());
-    pCharacteristic->notify();
-    effect = "";
+  if (effect == "beacon") {
+    currentMillis = millis();
+    if (currentMillis - startMillis >= 2000) {
+      pBLEScan->start(15);
+    }
   }
-  if (effect == "a") {
-    pCharacteristic->setValue("c" + intColor());
-    pCharacteristic->notify();
-    effect = "";
-  }*/
+  
   if (effect == "blink") {
     blink(effectCommand);
   }
 
-  if (effect == "Color") {
+  else if (effect == "Color") {
     colorChange();
   }
 
-  if (effect == "cylon") {
+  else if (effect == "cylon") {
     cylon();
   }
 
-  if (effect == "firee") {
+  else if (effect == "firee") {
     fire();
   }
 }
