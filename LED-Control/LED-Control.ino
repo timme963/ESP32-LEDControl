@@ -49,9 +49,9 @@ float txValue = 0;
 
 CRGB leds[NUM_LEDS];
 int maxLEDs = 15;
-int color1 = 0;
-int color2 = 0;
-int color3 = 0;
+int color1 = 255;
+int color2 = 000;
+int color3 = 255;
 int brightness = 255;
 String effect = "";
 String effectCommand;
@@ -223,9 +223,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       {
         Serial.println(" Ueberwachte Adresse");                         // wenn überwache Adresse gefunden wurde
         LEDS.setBrightness(255);
-        for (int i = 0; i < maxLEDs; i++) {
-          leds[i] = CRGB::White;
-        }
         FastLED.show();
         VerzoegerungZaeler = 0;
         advertisedDevice.getScan()->stop();                           // Scanvorgang beenden
@@ -247,6 +244,15 @@ int intColor() {
   int Blue = color3 & 0x000000FF; //Mask out anything not blue.
 
   return 0xFF000000 | Red | Green | Blue; //0xFF000000 for 100% Alpha. Bitwise OR everything together.
+}
+
+String fillNull(int number) {
+    String newNumber = "";
+    newNumber += number;
+    while (newNumber.length() < 3) {
+      newNumber = "0" + newNumber;
+    }
+    return newNumber;
 }
 
 
@@ -305,9 +311,13 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
         else if (command.startsWith("c")) {
           color(command.substring(1));
-          //std::string b = "Hallo" + 255;
-          //pCharacteristic->setValue("");
-          //pCharacteristic->notify();
+          String c = "c";
+          String data = c + fillNull(color1);
+          String data1 = data + fillNull(color2);
+          String data2 = data1 + fillNull(color3);
+          std::string data3 = data2.c_str();
+          pCharacteristic->setValue(data3);
+          pCharacteristic->notify();
         }
 
         else if (command.startsWith("wakeup")) {
@@ -341,8 +351,17 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           delay(10);
           String name = command.substring(1);
           mName = name.c_str();
-          //pCharacteristic->setValue("c" + intColor());
-          //pCharacteristic->notify(); 
+          String c = "c";
+          String data = c + fillNull(color1);
+          String data1 = data + fillNull(color2);
+          String data2 = data1 + fillNull(color3);
+          std::string data3 = data2.c_str();
+          pCharacteristic->setValue(data3);
+          pCharacteristic->notify();
+          for (int i = 0; i < maxLEDs; i++) {
+            leds[i] = CRGB(color1, color2, color3);
+          }
+          FastLED.show();
         }
 
         if (command.startsWith("eblink")) {
