@@ -55,7 +55,7 @@ int color3 = 255;
 int brightness = 255;
 String effect = "";
 String effectCommand;
-std::string mName = "HUAWEI";
+std::string mName = "";
 static BLEAddress *pServerAddress;
 BLEScan* pBLEScan ;
 int Verzoegerung = 5;
@@ -67,6 +67,7 @@ unsigned long currentMillis;
 const unsigned long period = 20;
 
 void num_LEDs(int num) {
+  // sets the number of controllable leds
   if (num < maxLEDs) {
     for (int i = num; i <= maxLEDs; i++) {
     leds[i] = CRGB::Black;
@@ -81,6 +82,7 @@ void num_LEDs(int num) {
 }
 
 void color(String color) {
+  // sets the color of all leds
   color1 = color.substring(0,3).toInt();
   color2 = color.substring(4,7).toInt();
   color3 = color.substring(8).toInt();
@@ -91,6 +93,7 @@ void color(String color) {
 }
 
 void wake(String time) {
+  // at variable time the leds are get brighter to maximum
   LEDS.setBrightness(0);
   for (int i = 0; i < maxLEDs; i++) {
     leds[i] = CRGB::White;
@@ -108,6 +111,7 @@ void wake(String time) {
 }
 
 void sleep(String time) {
+  // at variable time the leds are getting darker to off
   while (LEDS.getBrightness() > 0) {
     if (LEDS.getBrightness() - 10 >= 0) {
       LEDS.setBrightness(LEDS.getBrightness() - 10);
@@ -120,6 +124,7 @@ void sleep(String time) {
 }
 
 void blink(String intervall) {
+  // leds are blinking
   currentMillis = millis();
   if (currentMillis - startMillis >= intervall.toInt()) {
     for (int i = 0; i < maxLEDs; i++) {
@@ -128,7 +133,6 @@ void blink(String intervall) {
     FastLED.show();
     delay(100);
   }
-  //delay(intervall.toInt());
   if (currentMillis - startMillis >= (intervall.toInt()*2)) {
     startMillis = currentMillis;
     for (int i = 0; i < maxLEDs; i++) {
@@ -137,8 +141,6 @@ void blink(String intervall) {
     FastLED.show();
     delay(100);
   }
-
-  //delay(intervall.toInt());
 }
 
 void fadeall() {
@@ -148,6 +150,7 @@ void fadeall() {
 }
 
 void colorChange() {
+  // the color of the leds is changeing
   static uint8_t hue = 0;
   for (int i = 0; i < maxLEDs; i++) {
 		leds[i] = CHSV(hue++, 255, 255);
@@ -158,11 +161,11 @@ void colorChange() {
 }
 
 void cylon() {
+  // leds are shown in loop with changing color 
   static uint8_t hue = 0;
   for (int i = 0; i < maxLEDs; i++) {
 		// Set the i'th led to red
 		leds[i] = CHSV(hue++, 255, 255);
-		// Show the leds
 		FastLED.show();
 		// now that we've shown the leds, reset the i'th led to black
 		leds[i] = CRGB::Black;
@@ -185,6 +188,7 @@ void cylon() {
 }
 
 void fire() {
+  // leds are shown fire effects
   static byte heat[NUM_LEDS];
   // Step 1.  Cool down every cell a little
   for (int i = 0; i < maxLEDs; i++) {
@@ -214,12 +218,12 @@ void fire() {
   delay(16);
 }
 
+//Example Code for ESP32 Advertising
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) // passiert wenn BLE Device ( beacon ) gefunden wurde
     {
-      Serial.println(advertisedDevice.getAddress().toString().c_str()); // ibeacon Adresse anzeigen
-      Serial.println(advertisedDevice.getName().c_str());               // Name anzeigen
-      if (advertisedDevice.getName().c_str() == mName)
+      Serial.println(advertisedDevice.getAddress().toString().c_str()); // beacon Adresse anzeigen
+      if (advertisedDevice.getServiceDataUUID().toString().c_str() == mName)
       {
         Serial.println(" Ueberwachte Adresse");                         // wenn überwache Adresse gefunden wurde
         LEDS.setBrightness(255);
@@ -238,15 +242,8 @@ void SekundenTic() {
   }
 }
 
-int intColor() {
-  int Red = (color1 << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
-  int Green = (color2 << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff
-  int Blue = color3 & 0x000000FF; //Mask out anything not blue.
-
-  return 0xFF000000 | Red | Green | Blue; //0xFF000000 for 100% Alpha. Bitwise OR everything together.
-}
-
 String fillNull(int number) {
+  // fügt führende nullen ein
     String newNumber = "";
     newNumber += number;
     while (newNumber.length() < 3) {
@@ -310,6 +307,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
 
         else if (command.startsWith("c")) {
+          // stes color and sends feedback to app
           color(command.substring(1));
           String c = "c";
           String data = c + fillNull(color1);
@@ -329,6 +327,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
 
         else if (command.equals("beacon+ein")) {
+          // starts scanning for the device wich sends this signal
           pServerAddress = new BLEAddress(mName.c_str());
           BLEDevice::init("");
           pBLEScan = BLEDevice::getScan();
@@ -342,6 +341,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
 
         if (command.startsWith("m")) {
+          // receive device data and send saved data
           if (brightness == 255) {
           pCharacteristic->setValue("b255");
           } else {
@@ -358,6 +358,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           std::string data3 = data2.c_str();
           pCharacteristic->setValue(data3);
           pCharacteristic->notify();
+          // set saved color
           for (int i = 0; i < maxLEDs; i++) {
             leds[i] = CRGB(color1, color2, color3);
           }
@@ -378,7 +379,7 @@ void setup() {
   Serial.begin(115200);
 
   // Create the BLE Device
-  BLEDevice::init("MYESP32"); // Give it a name
+  BLEDevice::init("MYESP32_"); // Give it a name
 
   // Create the BLE Server
   BLEServer *pServer = BLEDevice::createServer();
@@ -412,6 +413,7 @@ void setup() {
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);  // GRB ordering is typical
 }
 
+//loop for restart effects when they done for repeat
 void loop() {
   if (effect == "beacon") {
     currentMillis = millis();
