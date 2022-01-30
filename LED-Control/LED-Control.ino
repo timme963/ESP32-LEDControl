@@ -155,9 +155,9 @@ void colorChange() {
   for (int i = 0; i < maxLEDs; i++) {
 		leds[i] = CHSV(hue++, 255, 255);
     delay(10);
+    FastLED.show();
   }
-  
-  FastLED.show();
+  //FastLED.show();
 }
 
 void cylon() {
@@ -236,7 +236,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 void SekundenTic() {
   VerzoegerungZaeler++;  // Sekundenzähler
-  if (VerzoegerungZaeler >= Verzoegerung) {
+  if (VerzoegerungZaeler >= Verzoegerung && effect == "beacon") {
     LEDS.setBrightness(0);
     FastLED.show();
   }
@@ -284,6 +284,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           effect = command.substring(1,6);
         } else {
           effect = "";
+          delay(10);
         }
 
         if (command.startsWith("num")) {
@@ -332,7 +333,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           BLEDevice::init("");
           pBLEScan = BLEDevice::getScan();
           pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-          Tic.attach( 1,SekundenTic);
+          Tic.attach(1,SekundenTic);
           effect = "beacon";
         }
 
@@ -358,11 +359,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           std::string data3 = data2.c_str();
           pCharacteristic->setValue(data3);
           pCharacteristic->notify();
-          // set saved color
-          for (int i = 0; i < maxLEDs; i++) {
-            leds[i] = CRGB(color1, color2, color3);
-          }
-          FastLED.show();
         }
 
         if (command.startsWith("eblink")) {
@@ -379,7 +375,7 @@ void setup() {
   Serial.begin(115200);
 
   // Create the BLE Device
-  BLEDevice::init("MYESP32_"); // Give it a name
+  BLEDevice::init("MYESP32"); // Give it a name
 
   // Create the BLE Server
   BLEServer *pServer = BLEDevice::createServer();
