@@ -42,13 +42,13 @@ float txValue = 0;
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
-#define NUM_LEDS 150 //maximal 150 LEDs
+#define NUM_LEDS 150 //maximal 150 LEDs bei mehr bitte hier anpassen, hier 150 wegen Stromversorgung
 #define DATA_PIN 22
 #define COOLING  55
 #define SPARKING 120
 
 CRGB leds[NUM_LEDS];
-int maxLEDs = 15;
+int maxLEDs = 15; // bei reboot sind 15 LEDs als standard gesetzt
 int color1 = 255;
 int color2 = 000;
 int color3 = 255;
@@ -161,6 +161,7 @@ void colorChange() {
 }
 
 void cylon() {
+  //https://wokwi.com/arduino/libraries/FastLED
   // leds are shown in loop with changing color 
   static uint8_t hue = 0;
   for (int i = 0; i < maxLEDs; i++) {
@@ -188,6 +189,7 @@ void cylon() {
 }
 
 void fire() {
+  //https://wokwi.com/arduino/libraries/FastLED
   // leds are shown fire effects
   static byte heat[NUM_LEDS];
   // Step 1.  Cool down every cell a little
